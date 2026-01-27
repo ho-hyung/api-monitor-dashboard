@@ -7,6 +7,19 @@ import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { CheckCircle, XCircle, AlertTriangle, MinusCircle } from 'lucide-react'
 
+// Consistent date formatting to prevent hydration mismatch
+const formatDateTime = (dateStr: string) => {
+  const date = new Date(dateStr)
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+const formatDate = (dateStr: string) => {
+  const date = new Date(dateStr)
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
 interface Monitor {
   id: string
   name: string
@@ -164,8 +177,8 @@ export function StatusPageClient({
                       <CardTitle className="text-lg">{incident.title}</CardTitle>
                       <Badge variant="destructive">{incident.status}</Badge>
                     </div>
-                    <CardDescription>
-                      Started {new Date(incident.started_at).toLocaleString()}
+                    <CardDescription suppressHydrationWarning>
+                      Started {formatDateTime(incident.started_at)}
                     </CardDescription>
                   </CardHeader>
                   {incident.incident_updates?.length > 0 && (
@@ -179,7 +192,7 @@ export function StatusPageClient({
                               <div className="flex items-center gap-2 text-muted-foreground">
                                 <span className="capitalize font-medium">{update.status}</span>
                                 <span>•</span>
-                                <span>{new Date(update.created_at).toLocaleString()}</span>
+                                <span suppressHydrationWarning>{formatDateTime(update.created_at)}</span>
                               </div>
                               <p className="mt-1">{update.message}</p>
                             </div>
@@ -277,8 +290,8 @@ export function StatusPageClient({
                       <CardTitle className="text-lg">{incident.title}</CardTitle>
                       <Badge variant="secondary">Resolved</Badge>
                     </div>
-                    <CardDescription>
-                      {new Date(incident.started_at).toLocaleDateString()} - Resolved {new Date(incident.resolved_at!).toLocaleDateString()}
+                    <CardDescription suppressHydrationWarning>
+                      {formatDate(incident.started_at)} - Resolved {formatDate(incident.resolved_at!)}
                     </CardDescription>
                   </CardHeader>
                 </Card>
@@ -292,7 +305,7 @@ export function StatusPageClient({
         {/* Footer */}
         <div className="text-center text-sm text-muted-foreground">
           <p>Powered by API Monitor Dashboard</p>
-          <p className="mt-1">Last updated: {new Date().toLocaleString()}</p>
+          <p className="mt-1" suppressHydrationWarning>Last updated: {new Date().toISOString().slice(0, 16).replace('T', ' ')}</p>
         </div>
       </div>
     </div>
