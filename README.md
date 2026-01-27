@@ -1,36 +1,124 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# API Monitor Dashboard
+
+A modern API monitoring dashboard with health checks, response time tracking, downtime alerts, and public status pages.
+
+## Features
+
+- **Health Check Monitoring**: Monitor API endpoints with configurable intervals (1min - 1hour)
+- **Response Time Charts**: Visualize response times with interactive charts
+- **Uptime Tracking**: 30-day uptime history with color-coded bars
+- **Notifications**: Slack, Discord, and Email alerts for downtime
+- **Public Status Page**: statuspage.io-style public status pages
+- **Incident Management**: Track and communicate service incidents
+- **Real-time Updates**: Supabase Realtime for live status updates
+
+## Tech Stack
+
+- **Frontend**: Next.js 15 (App Router), Tailwind CSS, shadcn/ui
+- **Backend**: Next.js API Routes, Vercel Cron
+- **Database**: Supabase (PostgreSQL + Auth + Realtime)
+- **Charts**: Recharts
+- **Notifications**: Slack/Discord Webhooks, Resend (Email)
+- **Deployment**: Vercel
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+
+- npm or yarn
+- Supabase account
+- Vercel account (for deployment)
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/yourusername/api-monitor-dashboard.git
+cd api-monitor-dashboard
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Set up Supabase:
+   - Create a new Supabase project
+   - Run the schema from `supabase/schema.sql` in the SQL Editor
+   - Enable Realtime for the `monitors` table
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Configure environment variables:
+```bash
+cp .env.local.example .env.local
+```
 
-## Learn More
+Edit `.env.local` with your Supabase credentials:
+```bash
+NEXT_PUBLIC_SUPABASE_URL=your-project-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+CRON_SECRET=your-random-secret
+RESEND_API_KEY=your-resend-key
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
 
-To learn more about Next.js, take a look at the following resources:
+5. Run the development server:
+```bash
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Visit [http://localhost:3000](http://localhost:3000)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
+### Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Push to GitHub
+2. Import project in Vercel
+3. Add environment variables
+4. Deploy
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The cron job is configured in `vercel.json` to run every minute.
+
+## Project Structure
+
+```
+src/
+├── app/                  # Next.js App Router pages
+├── components/           # React components
+├── hooks/                # Custom React hooks
+├── lib/                  # Utilities and services
+└── types/                # TypeScript types
+```
+
+## API Reference
+
+### Monitors
+
+- `GET /api/monitors` - List all monitors
+- `POST /api/monitors` - Create a monitor
+- `GET /api/monitors/[id]` - Get monitor details
+- `PATCH /api/monitors/[id]` - Update a monitor
+- `DELETE /api/monitors/[id]` - Delete a monitor
+- `GET /api/monitors/[id]/health-checks` - Get health check history
+
+### Notifications
+
+- `GET /api/notifications/channels` - List notification channels
+- `POST /api/notifications/channels` - Create a channel
+- `POST /api/notifications/channels/[id]/test` - Send test notification
+
+### Incidents
+
+- `GET /api/incidents` - List incidents
+- `POST /api/incidents` - Create an incident
+- `POST /api/incidents/[id]/updates` - Add incident update
+
+### Public Status
+
+- `GET /api/public/status/[slug]` - Get public status data
+
+## License
+
+MIT
