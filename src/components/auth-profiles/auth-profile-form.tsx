@@ -81,7 +81,7 @@ export function AuthProfileForm({ profile, onSubmit, onCancel }: AuthProfileForm
         </div>
         <div className="space-y-2">
           <Label htmlFor="loginMethod">Method</Label>
-          <Select value={loginMethod} onValueChange={setLoginMethod}>
+          <Select value={loginMethod} onValueChange={(v) => setLoginMethod(v as 'GET' | 'POST')}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -124,7 +124,7 @@ export function AuthProfileForm({ profile, onSubmit, onCancel }: AuthProfileForm
         </div>
         <div className="space-y-2">
           <Label htmlFor="tokenType">Token Type</Label>
-          <Select value={tokenType} onValueChange={setTokenType}>
+          <Select value={tokenType} onValueChange={(v) => setTokenType(v as 'Bearer' | 'Basic' | 'API-Key')}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
