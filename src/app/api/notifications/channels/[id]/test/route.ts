@@ -39,6 +39,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       current_status: 'up',
       is_public: false,
       last_checked_at: new Date().toISOString(),
+      auth_profile_id: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
