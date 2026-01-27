@@ -7,18 +7,12 @@ import {
   Activity,
   Bell,
   Globe,
-  LayoutDashboard,
   AlertTriangle,
   Settings,
   Key,
 } from 'lucide-react'
 
 const navItems = [
-  {
-    title: 'Dashboard',
-    href: '/',
-    icon: LayoutDashboard,
-  },
   {
     title: 'Monitors',
     href: '/monitors',
