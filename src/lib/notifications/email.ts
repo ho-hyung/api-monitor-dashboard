@@ -1,6 +1,17 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Lazy initialization to avoid errors when API key is not set
+let resend: Resend | null = null
+
+function getResendClient(): Resend | null {
+  if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 'placeholder-resend-key') {
+    return null
+  }
+  if (!resend) {
+    resend = new Resend(process.env.RESEND_API_KEY)
+  }
+  return resend
+}
 
 export async function sendEmailNotification(
   to: string,
@@ -9,10 +20,15 @@ export async function sendEmailNotification(
   status: 'down' | 'up'
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const client = getResendClient()
+    if (!client) {
+      return { success: false, error: 'Email notifications not configured. Set RESEND_API_KEY.' }
+    }
+
     const statusText = status === 'down' ? 'DOWN' : 'UP'
     const statusEmoji = status === 'down' ? '🔴' : '🟢'
 
-    const { error } = await resend.emails.send({
+    const { error } = await client.emails.send({
       from: 'API Monitor <noreply@resend.dev>',
       to: [to],
       subject: `${statusEmoji} [${statusText}] ${monitorName}`,
