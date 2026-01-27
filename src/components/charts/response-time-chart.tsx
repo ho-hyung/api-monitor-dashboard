@@ -79,6 +79,7 @@ export function ResponseTimeChart({ healthChecks }: ResponseTimeChartProps) {
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(value) => `${value}ms`}
+                domain={[0, 'auto']}
               />
               <Tooltip
                 content={({ active, payload }) => {
@@ -104,10 +105,12 @@ export function ResponseTimeChart({ healthChecks }: ResponseTimeChartProps) {
               <Line
                 type="monotone"
                 dataKey="responseTime"
-                stroke="hsl(var(--primary))"
+                stroke="#2563eb"
                 strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4 }}
+                dot={{ r: 3, fill: '#2563eb' }}
+                activeDot={{ r: 5, fill: '#2563eb' }}
+                connectNulls
+                isAnimationActive={false}
               />
             </LineChart>
           </ResponsiveContainer>

@@ -132,9 +132,17 @@ export default async function MonitorDetailPage({ params }: PageProps) {
             <CardDescription>Last Checked</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-lg font-medium">
+            <div className="text-lg font-medium" suppressHydrationWarning>
               {monitor.last_checked_at
-                ? new Date(monitor.last_checked_at).toLocaleString()
+                ? new Date(monitor.last_checked_at).toLocaleString('ko-KR', {
+                    timeZone: 'Asia/Seoul',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                  })
                 : 'Never'}
             </div>
           </CardContent>
