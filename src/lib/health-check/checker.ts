@@ -1,4 +1,5 @@
-import type { Monitor, MonitorStatus } from '@/types/database'
+import type { Monitor, MonitorStatus, AuthProfile } from '@/types/database'
+import { getTokenForProfile, buildAuthHeader, clearTokenCache } from './auth'
 
 export interface HealthCheckResult {
   status: MonitorStatus
@@ -7,21 +8,37 @@ export interface HealthCheckResult {
   error_message: string | null
 }
 
+export interface HealthCheckOptions {
+  authToken?: string
+  authProfile?: AuthProfile
+}
+
 const TIMEOUT_MS = 30000 // 30 seconds
 
-export async function performHealthCheck(monitor: Monitor): Promise<HealthCheckResult> {
+export async function performHealthCheck(
+  monitor: Monitor,
+  options?: HealthCheckOptions
+): Promise<HealthCheckResult> {
   const startTime = Date.now()
 
   try {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
+    const headers: Record<string, string> = {
+      'User-Agent': 'API-Monitor/1.0',
+    }
+
+    // Add authentication header if provided
+    if (options?.authToken && options?.authProfile) {
+      const authHeader = buildAuthHeader(options.authProfile, options.authToken)
+      headers[authHeader.name] = authHeader.value
+    }
+
     const response = await fetch(monitor.url, {
       method: monitor.method,
       signal: controller.signal,
-      headers: {
-        'User-Agent': 'API-Monitor/1.0',
-      },
+      headers,
     })
 
     clearTimeout(timeoutId)
@@ -70,3 +87,6 @@ export function shouldRunHealthCheck(
 
   return diffSeconds >= monitor.interval_seconds
 }
+
+// Re-export auth functions for convenience
+export { getTokenForProfile, clearTokenCache }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import type { Monitor } from '@/types/database'
+import type { Monitor, AuthProfile } from '@/types/database'
 
 interface MonitorFormProps {
   monitor?: Monitor
@@ -19,12 +19,26 @@ interface MonitorFormProps {
 export function MonitorForm({ monitor, mode }: MonitorFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [authProfiles, setAuthProfiles] = useState<AuthProfile[]>([])
 
   const [name, setName] = useState(monitor?.name ?? '')
   const [url, setUrl] = useState(monitor?.url ?? '')
   const [method, setMethod] = useState<'GET' | 'POST' | 'HEAD'>(monitor?.method ?? 'GET')
   const [intervalSeconds, setIntervalSeconds] = useState(monitor?.interval_seconds ?? 300)
   const [isPublic, setIsPublic] = useState(monitor?.is_public ?? false)
+  const [authProfileId, setAuthProfileId] = useState<string | null>(monitor?.auth_profile_id ?? null)
+
+  // Fetch auth profiles
+  useEffect(() => {
+    fetch('/api/auth-profiles')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setAuthProfiles(data)
+        }
+      })
+      .catch(err => console.error('Failed to fetch auth profiles:', err))
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,6 +51,7 @@ export function MonitorForm({ monitor, mode }: MonitorFormProps) {
         method,
         interval_seconds: intervalSeconds,
         is_public: isPublic,
+        auth_profile_id: authProfileId,
       }
 
       const endpoint = mode === 'create'
@@ -134,6 +149,29 @@ export function MonitorForm({ monitor, mode }: MonitorFormProps) {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="authProfile">Authentication Profile</Label>
+            <Select
+              value={authProfileId ?? 'none'}
+              onValueChange={(v) => setAuthProfileId(v === 'none' ? null : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select auth profile (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Authentication</SelectItem>
+                {authProfiles.map(profile => (
+                  <SelectItem key={profile.id} value={profile.id}>
+                    {profile.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Select an auth profile if this API requires authentication
+            </p>
           </div>
 
           <div className="flex items-center space-x-2">

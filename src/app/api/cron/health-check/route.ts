@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
-import { performHealthCheck, shouldRunHealthCheck } from '@/lib/health-check/checker'
-import type { Monitor } from '@/types/database'
+import { performHealthCheck, shouldRunHealthCheck, getTokenForProfile, clearTokenCache } from '@/lib/health-check/checker'
+import type { Monitor, AuthProfile } from '@/types/database'
 
 type SupabaseAdminClient = SupabaseClient
 
-// This endpoint is called by Vercel Cron
-// Configure in vercel.json: { "crons": [{ "path": "/api/cron/health-check", "schedule": "* * * * *" }] }
+// Monitor with joined auth profile
+interface MonitorWithAuth extends Monitor {
+  auth_profiles: AuthProfile | null
+}
+
+// This endpoint is called by Vercel Cron or external cron service
+// Configure in vercel.json: { "crons": [{ "path": "/api/cron/health-check", "schedule": "0 0 * * *" }] }
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,10 +29,10 @@ export async function GET(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    // Fetch all monitors
+    // Fetch all monitors with auth profiles
     const { data: monitors, error: monitorsError } = await supabase
       .from('monitors')
-      .select('*')
+      .select('*, auth_profiles(*)')
 
     if (monitorsError) {
       return NextResponse.json({ error: monitorsError.message }, { status: 500 })
@@ -39,16 +44,79 @@ export async function GET(request: NextRequest) {
 
     // Filter monitors that need to be checked
     const now = new Date()
-    const monitorsToCheck = monitors.filter((m: Monitor) => shouldRunHealthCheck(m, now))
+    const monitorsToCheck = (monitors as MonitorWithAuth[]).filter((m) =>
+      shouldRunHealthCheck(m, now)
+    )
 
     if (monitorsToCheck.length === 0) {
       return NextResponse.json({ message: 'No monitors due for check', checked: 0 })
     }
 
+    // Clear token cache at the start of each cron run
+    clearTokenCache()
+
+    // Group monitors by auth profile
+    const monitorsByProfile = new Map<string | null, MonitorWithAuth[]>()
+    for (const monitor of monitorsToCheck) {
+      const profileId = monitor.auth_profile_id
+      if (!monitorsByProfile.has(profileId)) {
+        monitorsByProfile.set(profileId, [])
+      }
+      monitorsByProfile.get(profileId)!.push(monitor)
+    }
+
+    // Fetch tokens for each auth profile
+    const tokensByProfile = new Map<string, string>()
+    const tokenErrors = new Map<string, string>()
+
+    for (const [profileId, profileMonitors] of monitorsByProfile) {
+      if (profileId && profileMonitors[0].auth_profiles) {
+        const profile = profileMonitors[0].auth_profiles
+        const tokenResult = await getTokenForProfile(profile)
+
+        if (tokenResult.success && tokenResult.token) {
+          tokensByProfile.set(profileId, tokenResult.token)
+        } else {
+          tokenErrors.set(profileId, tokenResult.error || 'Token fetch failed')
+        }
+      }
+    }
+
     // Perform health checks in parallel
     const results = await Promise.allSettled(
-      monitorsToCheck.map(async (monitor: Monitor) => {
-        const result = await performHealthCheck(monitor)
+      monitorsToCheck.map(async (monitor: MonitorWithAuth) => {
+        const profileId = monitor.auth_profile_id
+
+        // Check if token is required but failed to fetch
+        if (profileId && tokenErrors.has(profileId)) {
+          const errorMsg = `Auth failed: ${tokenErrors.get(profileId)}`
+
+          // Insert failed health check
+          await supabase.from('health_checks').insert({
+            monitor_id: monitor.id,
+            status: 'down',
+            response_time_ms: null,
+            status_code: null,
+            error_message: errorMsg,
+            checked_at: now.toISOString(),
+          })
+
+          await supabase
+            .from('monitors')
+            .update({
+              current_status: 'down',
+              last_checked_at: now.toISOString(),
+            })
+            .eq('id', monitor.id)
+
+          return { monitor_id: monitor.id, status: 'down', error: errorMsg }
+        }
+
+        // Get token if profile exists
+        const authToken = profileId ? tokensByProfile.get(profileId) : undefined
+        const authProfile = monitor.auth_profiles || undefined
+
+        const result = await performHealthCheck(monitor, { authToken, authProfile })
 
         // Insert health check record
         await supabase.from('health_checks').insert({
@@ -90,6 +158,8 @@ export async function GET(request: NextRequest) {
       checked: monitorsToCheck.length,
       successful,
       failed,
+      auth_profiles_used: tokensByProfile.size,
+      auth_errors: tokenErrors.size,
     })
   } catch (error) {
     console.error('Cron health check error:', error)

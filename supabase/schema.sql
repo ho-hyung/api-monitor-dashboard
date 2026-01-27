@@ -3,6 +3,22 @@
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Auth profiles table (for API authentication)
+CREATE TABLE auth_profiles (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  login_url TEXT NOT NULL,
+  login_method VARCHAR(10) NOT NULL DEFAULT 'POST' CHECK (login_method IN ('GET', 'POST')),
+  login_body JSONB NOT NULL DEFAULT '{}',
+  token_path VARCHAR(255) NOT NULL DEFAULT 'access_token',
+  token_type VARCHAR(20) NOT NULL DEFAULT 'Bearer' CHECK (token_type IN ('Bearer', 'Basic', 'API-Key')),
+  header_name VARCHAR(100) NOT NULL DEFAULT 'Authorization',
+  expires_in_seconds INTEGER DEFAULT 3600,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Monitors table
 CREATE TABLE monitors (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -14,6 +30,7 @@ CREATE TABLE monitors (
   current_status VARCHAR(10) NOT NULL DEFAULT 'unknown' CHECK (current_status IN ('up', 'down', 'unknown')),
   is_public BOOLEAN NOT NULL DEFAULT false,
   last_checked_at TIMESTAMPTZ,
+  auth_profile_id UUID REFERENCES auth_profiles(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -98,7 +115,9 @@ CREATE TABLE incident_updates (
 );
 
 -- Indexes for performance
+CREATE INDEX idx_auth_profiles_user_id ON auth_profiles(user_id);
 CREATE INDEX idx_monitors_user_id ON monitors(user_id);
+CREATE INDEX idx_monitors_auth_profile_id ON monitors(auth_profile_id);
 CREATE INDEX idx_health_checks_monitor_id ON health_checks(monitor_id);
 CREATE INDEX idx_health_checks_checked_at ON health_checks(checked_at DESC);
 CREATE INDEX idx_notification_channels_user_id ON notification_channels(user_id);
@@ -113,6 +132,7 @@ CREATE INDEX idx_incident_updates_incident_id ON incident_updates(incident_id);
 -- Row Level Security (RLS) policies
 
 -- Enable RLS on all tables
+ALTER TABLE auth_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE monitors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE health_checks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notification_channels ENABLE ROW LEVEL SECURITY;
@@ -121,6 +141,11 @@ ALTER TABLE alert_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE status_page_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE incidents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE incident_updates ENABLE ROW LEVEL SECURITY;
+
+-- Auth profiles policies
+CREATE POLICY "Users can manage their own auth profiles"
+  ON auth_profiles FOR ALL
+  USING (auth.uid() = user_id);
 
 -- Monitors policies
 CREATE POLICY "Users can view their own monitors"
@@ -232,6 +257,11 @@ END;
 $$ language 'plpgsql';
 
 -- Apply updated_at triggers
+CREATE TRIGGER update_auth_profiles_updated_at
+  BEFORE UPDATE ON auth_profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER update_monitors_updated_at
   BEFORE UPDATE ON monitors
   FOR EACH ROW

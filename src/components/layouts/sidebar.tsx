@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   AlertTriangle,
   Settings,
+  Key,
 } from 'lucide-react'
 
 const navItems = [
@@ -22,6 +23,11 @@ const navItems = [
     title: 'Monitors',
     href: '/monitors',
     icon: Activity,
+  },
+  {
+    title: 'Auth Profiles',
+    href: '/auth-profiles',
+    icon: Key,
   },
   {
     title: 'Incidents',

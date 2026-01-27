@@ -6,6 +6,7 @@ export const monitorSchema = z.object({
   method: z.enum(['GET', 'POST', 'HEAD']).default('GET'),
   interval_seconds: z.number().int().min(60).max(86400).default(300),
   is_public: z.boolean().default(false),
+  auth_profile_id: z.string().uuid().nullable().optional(),
 })
 
 export const monitorUpdateSchema = monitorSchema.partial()

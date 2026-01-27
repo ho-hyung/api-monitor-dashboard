@@ -1,8 +1,25 @@
 export type MonitorStatus = 'up' | 'down' | 'unknown'
 export type MonitorMethod = 'GET' | 'POST' | 'HEAD'
+export type AuthLoginMethod = 'GET' | 'POST'
+export type AuthTokenType = 'Bearer' | 'Basic' | 'API-Key'
 export type NotificationChannelType = 'slack' | 'discord' | 'email'
 export type IncidentStatus = 'investigating' | 'identified' | 'monitoring' | 'resolved'
 export type IncidentSeverity = 'minor' | 'major' | 'critical'
+
+export interface AuthProfile {
+  id: string
+  user_id: string
+  name: string
+  login_url: string
+  login_method: AuthLoginMethod
+  login_body: Record<string, string>
+  token_path: string
+  token_type: AuthTokenType
+  header_name: string
+  expires_in_seconds: number | null
+  created_at: string
+  updated_at: string
+}
 
 export interface Monitor {
   id: string
@@ -14,8 +31,11 @@ export interface Monitor {
   current_status: MonitorStatus
   is_public: boolean
   last_checked_at: string | null
+  auth_profile_id: string | null
   created_at: string
   updated_at: string
+  // Joined data
+  auth_profile?: AuthProfile | null
 }
 
 export interface HealthCheck {
@@ -94,10 +114,15 @@ export interface IncidentUpdate {
 export interface Database {
   public: {
     Tables: {
+      auth_profiles: {
+        Row: AuthProfile
+        Insert: Omit<AuthProfile, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<AuthProfile, 'id' | 'created_at' | 'updated_at'>>
+      }
       monitors: {
         Row: Monitor
-        Insert: Omit<Monitor, 'id' | 'created_at' | 'updated_at'>
-        Update: Partial<Omit<Monitor, 'id' | 'created_at' | 'updated_at'>>
+        Insert: Omit<Monitor, 'id' | 'created_at' | 'updated_at' | 'auth_profile'>
+        Update: Partial<Omit<Monitor, 'id' | 'created_at' | 'updated_at' | 'auth_profile'>>
       }
       health_checks: {
         Row: HealthCheck
