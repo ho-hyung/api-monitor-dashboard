@@ -165,6 +165,19 @@ export async function GET(request: NextRequest) {
     const successful = results.filter(r => r.status === 'fulfilled').length
     const failed = results.filter(r => r.status === 'rejected').length
 
+    // Debug info
+    const debugInfo = {
+      monitors_with_auth: monitorsToCheck.filter(m => m.auth_profile_id).map(m => ({
+        monitor_id: m.id,
+        monitor_name: m.name,
+        auth_profile_id: m.auth_profile_id,
+        has_token: m.auth_profile_id ? tokensByProfile.has(m.auth_profile_id) : false,
+        token_error: m.auth_profile_id ? tokenErrors.get(m.auth_profile_id) : null,
+      })),
+      auth_profiles_found: authProfilesMap.size,
+      auth_profile_ids_requested: authProfileIds,
+    }
+
     return NextResponse.json({
       message: 'Health check completed',
       checked: monitorsToCheck.length,
@@ -172,6 +185,7 @@ export async function GET(request: NextRequest) {
       failed,
       auth_profiles_used: tokensByProfile.size,
       auth_errors: tokenErrors.size,
+      debug: debugInfo,
     })
   } catch (error) {
     console.error('Cron health check error:', error)
