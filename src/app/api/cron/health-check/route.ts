@@ -138,6 +138,8 @@ export async function GET(request: NextRequest) {
           authTokenLength: authToken?.length ?? 0,
           hasAuthProfile: !!authProfile,
           authProfileName: authProfile?.name,
+          tokenType: authProfile?.token_type,
+          headerName: authProfile?.header_name,
         }
 
         const result = await performHealthCheck(monitor, { authToken, authProfile })
