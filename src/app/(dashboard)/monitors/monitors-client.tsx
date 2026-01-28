@@ -92,8 +92,8 @@ export function MonitorsClient({ initialMonitors }: MonitorsClientProps) {
     try {
       const response = await fetch('/api/monitors')
       if (response.ok) {
-        const data = await response.json()
-        setMonitors(data)
+        const result = await response.json()
+        setMonitors(result.data ?? [])
       }
     } catch (error) {
       console.error('Failed to refresh monitors:', error)
