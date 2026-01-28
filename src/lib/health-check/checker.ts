@@ -1,3 +1,4 @@
+import https from 'https'
 import type { Monitor, MonitorStatus, AuthProfile } from '@/types/database'
 import { getTokenForProfile, buildAuthHeader, clearTokenCache } from './auth'
 
@@ -14,6 +15,39 @@ export interface HealthCheckOptions {
 }
 
 const TIMEOUT_MS = 30000 // 30 seconds
+
+// Custom fetch with SSL verification option
+async function fetchWithSSLOption(
+  url: string,
+  options: {
+    method: string
+    headers: Record<string, string>
+    signal: AbortSignal
+    skipSSLVerify?: boolean
+  }
+): Promise<Response> {
+  // If SSL verification should be skipped and it's HTTPS, use custom agent
+  if (options.skipSSLVerify && url.startsWith('https://')) {
+    const agent = new https.Agent({
+      rejectUnauthorized: false,
+    })
+
+    return fetch(url, {
+      method: options.method,
+      headers: options.headers,
+      signal: options.signal,
+      // @ts-expect-error - Node.js fetch supports agent option
+      agent,
+    })
+  }
+
+  // Use standard fetch for HTTP or when SSL verification is enabled
+  return fetch(url, {
+    method: options.method,
+    headers: options.headers,
+    signal: options.signal,
+  })
+}
 
 export async function performHealthCheck(
   monitor: Monitor,
@@ -35,10 +69,11 @@ export async function performHealthCheck(
       headers[authHeader.name] = authHeader.value
     }
 
-    const response = await fetch(monitor.url, {
+    const response = await fetchWithSSLOption(monitor.url, {
       method: monitor.method,
-      signal: controller.signal,
       headers,
+      signal: controller.signal,
+      skipSSLVerify: monitor.skip_ssl_verify,
     })
 
     clearTimeout(timeoutId)

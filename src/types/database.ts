@@ -32,6 +32,7 @@ export interface Monitor {
   is_public: boolean
   last_checked_at: string | null
   auth_profile_id: string | null
+  skip_ssl_verify: boolean
   created_at: string
   updated_at: string
   // Joined data

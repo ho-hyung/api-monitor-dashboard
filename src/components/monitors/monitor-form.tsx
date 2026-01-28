@@ -27,6 +27,7 @@ export function MonitorForm({ monitor, mode }: MonitorFormProps) {
   const [intervalSeconds, setIntervalSeconds] = useState(monitor?.interval_seconds ?? 300)
   const [isPublic, setIsPublic] = useState(monitor?.is_public ?? false)
   const [authProfileId, setAuthProfileId] = useState<string | null>(monitor?.auth_profile_id ?? null)
+  const [skipSslVerify, setSkipSslVerify] = useState(monitor?.skip_ssl_verify ?? false)
 
   // Fetch auth profiles
   useEffect(() => {
@@ -52,6 +53,7 @@ export function MonitorForm({ monitor, mode }: MonitorFormProps) {
         interval_seconds: intervalSeconds,
         is_public: isPublic,
         auth_profile_id: authProfileId,
+        skip_ssl_verify: skipSslVerify,
       }
 
       const endpoint = mode === 'create'
@@ -182,6 +184,20 @@ export function MonitorForm({ monitor, mode }: MonitorFormProps) {
             />
             <Label htmlFor="public">Show on public status page</Label>
           </div>
+
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="skipSsl"
+              checked={skipSslVerify}
+              onCheckedChange={setSkipSslVerify}
+            />
+            <Label htmlFor="skipSsl">Skip SSL certificate verification</Label>
+          </div>
+          {skipSslVerify && (
+            <p className="text-xs text-amber-600">
+              Warning: Only enable this for self-signed certificates in trusted environments
+            </p>
+          )}
         </CardContent>
 
         <CardFooter className="flex justify-between">

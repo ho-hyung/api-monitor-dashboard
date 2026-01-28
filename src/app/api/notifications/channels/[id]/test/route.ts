@@ -40,6 +40,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       is_public: false,
       last_checked_at: new Date().toISOString(),
       auth_profile_id: null,
+      skip_ssl_verify: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }

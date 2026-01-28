@@ -7,6 +7,7 @@ export const monitorSchema = z.object({
   interval_seconds: z.number().int().min(60).max(86400).default(300),
   is_public: z.boolean().default(false),
   auth_profile_id: z.string().uuid().nullable().optional(),
+  skip_ssl_verify: z.boolean().default(false),
 })
 
 export const monitorUpdateSchema = monitorSchema.partial()
