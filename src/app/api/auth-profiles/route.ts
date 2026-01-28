@@ -11,6 +11,7 @@ const authProfileSchema = z.object({
   token_type: z.enum(['Bearer', 'Basic', 'API-Key']).default('Bearer'),
   header_name: z.string().min(1).default('Authorization'),
   expires_in_seconds: z.number().int().positive().nullable().default(3600),
+  skip_ssl_verify: z.boolean().default(false),
 })
 
 export async function GET() {

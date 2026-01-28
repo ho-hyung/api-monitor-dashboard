@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { AuthProfile } from '@/types/database'
 
@@ -26,6 +27,7 @@ export function AuthProfileForm({ profile, onSubmit, onCancel }: AuthProfileForm
   const [tokenType, setTokenType] = useState(profile?.token_type ?? 'Bearer')
   const [headerName, setHeaderName] = useState(profile?.header_name ?? 'Authorization')
   const [expiresIn, setExpiresIn] = useState(profile?.expires_in_seconds?.toString() ?? '3600')
+  const [skipSslVerify, setSkipSslVerify] = useState(profile?.skip_ssl_verify ?? false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,6 +48,7 @@ export function AuthProfileForm({ profile, onSubmit, onCancel }: AuthProfileForm
         token_type: tokenType as 'Bearer' | 'Basic' | 'API-Key',
         header_name: headerName,
         expires_in_seconds: expiresIn ? parseInt(expiresIn, 10) : null,
+        skip_ssl_verify: skipSslVerify,
       })
     } catch (error) {
       // Error handled in parent
@@ -159,6 +162,20 @@ export function AuthProfileForm({ profile, onSubmit, onCancel }: AuthProfileForm
           />
         </div>
       </div>
+
+      <div className="flex items-center space-x-2">
+        <Switch
+          id="skipSsl"
+          checked={skipSslVerify}
+          onCheckedChange={setSkipSslVerify}
+        />
+        <Label htmlFor="skipSsl">Skip SSL certificate verification</Label>
+      </div>
+      {skipSslVerify && (
+        <p className="text-xs text-amber-600">
+          Warning: Only enable this for login URLs with self-signed certificates
+        </p>
+      )}
 
       <div className="flex justify-end gap-2 pt-4">
         <Button type="button" variant="outline" onClick={onCancel}>

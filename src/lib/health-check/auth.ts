@@ -1,3 +1,5 @@
+import https from 'https'
+import http from 'http'
 import type { AuthProfile } from '@/types/database'
 
 interface TokenResult {
@@ -5,6 +7,8 @@ interface TokenResult {
   token?: string
   error?: string
 }
+
+const TIMEOUT_MS = 30000
 
 /**
  * Extract value from nested object using dot notation path
@@ -28,32 +32,90 @@ function getValueByPath(obj: Record<string, unknown>, path: string): string | un
 }
 
 /**
+ * Make HTTPS request with SSL skip option
+ */
+function httpsRequest(
+  url: string,
+  options: {
+    method: string
+    headers: Record<string, string>
+    body?: string
+    skipSSLVerify?: boolean
+  }
+): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(url)
+    const isHttps = parsedUrl.protocol === 'https:'
+
+    const requestOptions: https.RequestOptions = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || (isHttps ? 443 : 80),
+      path: parsedUrl.pathname + parsedUrl.search,
+      method: options.method,
+      headers: options.headers,
+      timeout: TIMEOUT_MS,
+      rejectUnauthorized: !options.skipSSLVerify,
+    }
+
+    const req = (isHttps ? https : http).request(requestOptions, (res) => {
+      let body = ''
+      res.on('data', (chunk) => {
+        body += chunk
+      })
+      res.on('end', () => {
+        resolve({
+          status: res.statusCode || 0,
+          body,
+        })
+      })
+    })
+
+    req.on('error', (error) => {
+      reject(error)
+    })
+
+    req.on('timeout', () => {
+      req.destroy()
+      reject(new Error(`Request timeout after ${TIMEOUT_MS}ms`))
+    })
+
+    if (options.body) {
+      req.write(options.body)
+    }
+
+    req.end()
+  })
+}
+
+/**
  * Fetch authentication token using the auth profile configuration
  */
 export async function fetchToken(profile: AuthProfile): Promise<TokenResult> {
   try {
-    const options: RequestInit = {
-      method: profile.login_method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
     }
 
+    let body: string | undefined
     if (profile.login_method === 'POST' && Object.keys(profile.login_body).length > 0) {
-      options.body = JSON.stringify(profile.login_body)
+      body = JSON.stringify(profile.login_body)
     }
 
-    const response = await fetch(profile.login_url, options)
+    const response = await httpsRequest(profile.login_url, {
+      method: profile.login_method,
+      headers,
+      body,
+      skipSSLVerify: profile.skip_ssl_verify,
+    })
 
-    if (!response.ok) {
-      const errorText = await response.text()
+    if (response.status < 200 || response.status >= 400) {
       return {
         success: false,
-        error: `Login failed with status ${response.status}: ${errorText.substring(0, 200)}`,
+        error: `Login failed with status ${response.status}: ${response.body.substring(0, 200)}`,
       }
     }
 
-    const data = await response.json()
+    const data = JSON.parse(response.body)
     const token = getValueByPath(data, profile.token_path)
 
     if (!token) {

@@ -11,6 +11,7 @@ const updateAuthProfileSchema = z.object({
   token_type: z.enum(['Bearer', 'Basic', 'API-Key']).optional(),
   header_name: z.string().min(1).optional(),
   expires_in_seconds: z.number().int().positive().nullable().optional(),
+  skip_ssl_verify: z.boolean().optional(),
 })
 
 interface RouteParams {

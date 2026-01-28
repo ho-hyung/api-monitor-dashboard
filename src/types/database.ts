@@ -17,6 +17,7 @@ export interface AuthProfile {
   token_type: AuthTokenType
   header_name: string
   expires_in_seconds: number | null
+  skip_ssl_verify: boolean
   created_at: string
   updated_at: string
 }
