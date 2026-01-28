@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils'
 import {
   Activity,
   Bell,
-  Globe,
   AlertTriangle,
   Settings,
   Key,
@@ -32,11 +31,6 @@ const navItems = [
     title: 'Notifications',
     href: '/notifications',
     icon: Bell,
-  },
-  {
-    title: 'Status Page',
-    href: '/settings',
-    icon: Globe,
   },
 ]
 
