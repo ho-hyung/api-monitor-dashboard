@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { performHealthCheck, shouldRunHealthCheck, getTokenForProfile, clearTokenCache } from '@/lib/health-check/checker'
-import type { Monitor, AuthProfile } from '@/types/database'
+import { sendNotification } from '@/lib/notifications/sender'
+import type { Monitor, AuthProfile, NotificationChannel } from '@/types/database'
 
 type SupabaseAdminClient = SupabaseClient
 
@@ -204,12 +205,18 @@ async function triggerAlerts(
       .limit(rule.trigger_after_failures)
 
     if (count && count >= rule.trigger_after_failures) {
-      // Send notification via the notification system (Phase 3)
+      const channel = rule.notification_channels as NotificationChannel
+      const message = `Monitor "${monitor.name}" is DOWN: ${result.error_message ?? 'Unknown error'}`
+
+      // Send actual notification
+      const sendResult = await sendNotification(channel, monitor, 'down', message)
+
+      // Log the result
       await supabase.from('alert_logs').insert({
         monitor_id: monitor.id,
         channel_id: rule.channel_id,
-        status: 'sent',
-        message: `Monitor "${monitor.name}" is DOWN: ${result.error_message ?? 'Unknown error'}`,
+        status: sendResult.success ? 'sent' : 'failed',
+        message: sendResult.success ? message : `${message} (Send failed: ${sendResult.error})`,
       })
     }
   }
@@ -229,11 +236,18 @@ async function triggerRecoveryAlerts(
   if (!alertRules || alertRules.length === 0) return
 
   for (const rule of alertRules) {
+    const channel = rule.notification_channels as NotificationChannel
+    const message = `Monitor "${monitor.name}" is now UP and running`
+
+    // Send actual notification
+    const sendResult = await sendNotification(channel, monitor, 'up', message)
+
+    // Log the result
     await supabase.from('alert_logs').insert({
       monitor_id: monitor.id,
       channel_id: rule.channel_id,
-      status: 'sent',
-      message: `Monitor "${monitor.name}" is now UP and running`,
+      status: sendResult.success ? 'sent' : 'failed',
+      message: sendResult.success ? message : `${message} (Send failed: ${sendResult.error})`,
     })
   }
 }
