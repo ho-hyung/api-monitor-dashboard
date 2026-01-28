@@ -155,11 +155,13 @@ export async function GET(request: NextRequest) {
           })
           .eq('id', monitor.id)
 
-        // If status changed, trigger alerts
+        // If status changed, trigger alerts and manage incidents
         if (statusChanged && result.status === 'down') {
           await triggerAlerts(supabase, monitor, result)
+          await createIncident(supabase, monitor, result)
         } else if (statusChanged && result.status === 'up' && monitor.current_status === 'down') {
           await triggerRecoveryAlerts(supabase, monitor)
+          await resolveIncident(supabase, monitor)
         }
 
         return { monitor_id: monitor.id, ...result }
@@ -250,4 +252,81 @@ async function triggerRecoveryAlerts(
       message: sendResult.success ? message : `${message} (Send failed: ${sendResult.error})`,
     })
   }
+}
+
+async function createIncident(
+  supabase: SupabaseAdminClient,
+  monitor: Monitor,
+  result: { error_message: string | null }
+) {
+  // Check if there's already an open incident for this monitor
+  const { data: existingIncident } = await supabase
+    .from('incidents')
+    .select('id')
+    .eq('monitor_id', monitor.id)
+    .neq('status', 'resolved')
+    .single()
+
+  if (existingIncident) {
+    // Already has an open incident, skip creation
+    return
+  }
+
+  // Create new incident
+  const { data: incident } = await supabase
+    .from('incidents')
+    .insert({
+      user_id: monitor.user_id,
+      monitor_id: monitor.id,
+      title: `${monitor.name} is DOWN`,
+      status: 'investigating',
+      severity: 'major',
+      started_at: new Date().toISOString(),
+    })
+    .select()
+    .single()
+
+  if (incident) {
+    // Add initial update
+    await supabase.from('incident_updates').insert({
+      incident_id: incident.id,
+      status: 'investigating',
+      message: result.error_message ?? 'Service is not responding',
+    })
+  }
+}
+
+async function resolveIncident(
+  supabase: SupabaseAdminClient,
+  monitor: Monitor
+) {
+  // Find open incident for this monitor
+  const { data: incident } = await supabase
+    .from('incidents')
+    .select('id')
+    .eq('monitor_id', monitor.id)
+    .neq('status', 'resolved')
+    .single()
+
+  if (!incident) {
+    return
+  }
+
+  const now = new Date().toISOString()
+
+  // Update incident to resolved
+  await supabase
+    .from('incidents')
+    .update({
+      status: 'resolved',
+      resolved_at: now,
+    })
+    .eq('id', incident.id)
+
+  // Add resolution update
+  await supabase.from('incident_updates').insert({
+    incident_id: incident.id,
+    status: 'resolved',
+    message: 'Service has recovered and is now operational',
+  })
 }
