@@ -42,11 +42,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'No monitors to check', checked: 0 })
     }
 
+    // Check for force parameter (for testing)
+    const forceCheck = request.nextUrl.searchParams.get('force') === 'true'
+
     // Filter monitors that need to be checked
     const now = new Date()
-    const monitorsToCheck = (monitors as MonitorWithAuth[]).filter((m) =>
-      shouldRunHealthCheck(m, now)
-    )
+    const monitorsToCheck = forceCheck
+      ? (monitors as MonitorWithAuth[])
+      : (monitors as MonitorWithAuth[]).filter((m) => shouldRunHealthCheck(m, now))
 
     if (monitorsToCheck.length === 0) {
       return NextResponse.json({ message: 'No monitors due for check', checked: 0 })
