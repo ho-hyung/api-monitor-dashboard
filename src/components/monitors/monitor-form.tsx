@@ -24,7 +24,7 @@ export function MonitorForm({ monitor, mode }: MonitorFormProps) {
   const [name, setName] = useState(monitor?.name ?? '')
   const [url, setUrl] = useState(monitor?.url ?? '')
   const [method, setMethod] = useState<'GET' | 'POST' | 'HEAD'>(monitor?.method ?? 'GET')
-  const [intervalSeconds, setIntervalSeconds] = useState(monitor?.interval_seconds ?? 300)
+  const [intervalSeconds, setIntervalSeconds] = useState(monitor?.interval_seconds ?? 1800)
   const [isPublic, setIsPublic] = useState(monitor?.is_public ?? false)
   const [authProfileId, setAuthProfileId] = useState<string | null>(monitor?.auth_profile_id ?? null)
   const [skipSslVerify, setSkipSslVerify] = useState(monitor?.skip_ssl_verify ?? false)
@@ -143,11 +143,12 @@ export function MonitorForm({ monitor, mode }: MonitorFormProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="60">1 minute</SelectItem>
-                  <SelectItem value="300">5 minutes</SelectItem>
-                  <SelectItem value="600">10 minutes</SelectItem>
                   <SelectItem value="1800">30 minutes</SelectItem>
                   <SelectItem value="3600">1 hour</SelectItem>
+                  <SelectItem value="7200">2 hours</SelectItem>
+                  <SelectItem value="21600">6 hours</SelectItem>
+                  <SelectItem value="43200">12 hours</SelectItem>
+                  <SelectItem value="86400">24 hours</SelectItem>
                 </SelectContent>
               </Select>
             </div>

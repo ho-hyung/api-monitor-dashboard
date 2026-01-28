@@ -4,7 +4,7 @@ export const monitorSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255),
   url: z.string().url('Invalid URL format'),
   method: z.enum(['GET', 'POST', 'HEAD']).default('GET'),
-  interval_seconds: z.number().int().min(60).max(86400).default(300),
+  interval_seconds: z.number().int().min(1800).max(86400).default(1800),
   is_public: z.boolean().default(false),
   auth_profile_id: z.string().uuid().nullable().optional(),
   skip_ssl_verify: z.boolean().default(false),
