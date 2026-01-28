@@ -171,7 +171,11 @@ export function shouldRunHealthCheck(
   const diffMs = now.getTime() - lastChecked.getTime()
   const diffSeconds = diffMs / 1000
 
-  return diffSeconds >= monitor.interval_seconds
+  // Add 10% tolerance to avoid timing edge cases
+  // e.g., 30min interval with cron running every 30min
+  const toleranceSeconds = monitor.interval_seconds * 0.9
+
+  return diffSeconds >= toleranceSeconds
 }
 
 // Re-export auth functions for convenience
