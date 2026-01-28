@@ -55,23 +55,35 @@ export async function GET(request: NextRequest) {
     // Clear token cache at the start of each cron run
     clearTokenCache()
 
-    // Group monitors by auth profile
-    const monitorsByProfile = new Map<string | null, MonitorWithAuth[]>()
-    for (const monitor of monitorsToCheck) {
-      const profileId = monitor.auth_profile_id
-      if (!monitorsByProfile.has(profileId)) {
-        monitorsByProfile.set(profileId, [])
+    // Get unique auth profile IDs that need tokens
+    const authProfileIds = [...new Set(
+      monitorsToCheck
+        .map(m => m.auth_profile_id)
+        .filter((id): id is string => id !== null)
+    )]
+
+    // Fetch auth profiles separately for reliability
+    const authProfilesMap = new Map<string, AuthProfile>()
+    if (authProfileIds.length > 0) {
+      const { data: authProfiles } = await supabase
+        .from('auth_profiles')
+        .select('*')
+        .in('id', authProfileIds)
+
+      if (authProfiles) {
+        for (const profile of authProfiles) {
+          authProfilesMap.set(profile.id, profile as AuthProfile)
+        }
       }
-      monitorsByProfile.get(profileId)!.push(monitor)
     }
 
     // Fetch tokens for each auth profile
     const tokensByProfile = new Map<string, string>()
     const tokenErrors = new Map<string, string>()
 
-    for (const [profileId, profileMonitors] of monitorsByProfile) {
-      if (profileId && profileMonitors[0].auth_profiles) {
-        const profile = profileMonitors[0].auth_profiles
+    for (const profileId of authProfileIds) {
+      const profile = authProfilesMap.get(profileId)
+      if (profile) {
         const tokenResult = await getTokenForProfile(profile)
 
         if (tokenResult.success && tokenResult.token) {
@@ -112,9 +124,9 @@ export async function GET(request: NextRequest) {
           return { monitor_id: monitor.id, status: 'down', error: errorMsg }
         }
 
-        // Get token if profile exists
+        // Get token and profile if exists
         const authToken = profileId ? tokensByProfile.get(profileId) : undefined
-        const authProfile = monitor.auth_profiles || undefined
+        const authProfile = profileId ? authProfilesMap.get(profileId) : undefined
 
         const result = await performHealthCheck(monitor, { authToken, authProfile })
 
