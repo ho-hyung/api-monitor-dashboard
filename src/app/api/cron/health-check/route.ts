@@ -131,6 +131,21 @@ export async function GET(request: NextRequest) {
         const authToken = profileId ? tokensByProfile.get(profileId) : undefined
         const authProfile = profileId ? authProfilesMap.get(profileId) : undefined
 
+        // Build actual header value for debug
+        let actualHeaderValue = ''
+        if (authToken && authProfile) {
+          switch (authProfile.token_type) {
+            case 'Bearer':
+              actualHeaderValue = `Bearer ${authToken.substring(0, 20)}...`
+              break
+            case 'Basic':
+              actualHeaderValue = `Basic ${authToken.substring(0, 20)}...`
+              break
+            default:
+              actualHeaderValue = `${authToken.substring(0, 20)}...`
+          }
+        }
+
         // Debug: log what's being passed
         const authDebug = {
           hasProfileId: !!profileId,
@@ -140,6 +155,7 @@ export async function GET(request: NextRequest) {
           authProfileName: authProfile?.name,
           tokenType: authProfile?.token_type,
           headerName: authProfile?.header_name,
+          actualHeader: actualHeaderValue ? `${authProfile?.header_name}: ${actualHeaderValue}` : null,
         }
 
         const result = await performHealthCheck(monitor, { authToken, authProfile })
