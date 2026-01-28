@@ -131,7 +131,19 @@ export async function GET(request: NextRequest) {
         const authToken = profileId ? tokensByProfile.get(profileId) : undefined
         const authProfile = profileId ? authProfilesMap.get(profileId) : undefined
 
+        // Debug: log what's being passed
+        const authDebug = {
+          hasProfileId: !!profileId,
+          hasAuthToken: !!authToken,
+          authTokenLength: authToken?.length ?? 0,
+          hasAuthProfile: !!authProfile,
+          authProfileName: authProfile?.name,
+        }
+
         const result = await performHealthCheck(monitor, { authToken, authProfile })
+
+        // Include auth debug in result
+        const resultWithDebug = { ...result, authDebug }
 
         // Insert health check record
         await supabase.from('health_checks').insert({
@@ -161,7 +173,7 @@ export async function GET(request: NextRequest) {
           await triggerRecoveryAlerts(supabase, monitor)
         }
 
-        return { monitor_id: monitor.id, ...result }
+        return { monitor_id: monitor.id, ...resultWithDebug }
       })
     )
 
@@ -181,6 +193,11 @@ export async function GET(request: NextRequest) {
       auth_profile_ids_requested: authProfileIds,
     }
 
+    // Extract results with debug info
+    const resultsData = results.map(r =>
+      r.status === 'fulfilled' ? r.value : { error: 'Promise rejected' }
+    )
+
     return NextResponse.json({
       message: 'Health check completed',
       checked: monitorsToCheck.length,
@@ -189,6 +206,7 @@ export async function GET(request: NextRequest) {
       auth_profiles_used: tokensByProfile.size,
       auth_errors: tokenErrors.size,
       debug: debugInfo,
+      results: resultsData,
     })
   } catch (error) {
     console.error('Cron health check error:', error)
