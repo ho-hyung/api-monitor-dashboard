@@ -1,4 +1,5 @@
 import https from 'https'
+import http from 'http'
 import type { Monitor, MonitorStatus, AuthProfile } from '@/types/database'
 import { getTokenForProfile, buildAuthHeader, clearTokenCache } from './auth'
 
@@ -16,37 +17,76 @@ export interface HealthCheckOptions {
 
 const TIMEOUT_MS = 30000 // 30 seconds
 
-// Custom fetch with SSL verification option
-async function fetchWithSSLOption(
+interface SimpleResponse {
+  status: number
+  statusText: string
+}
+
+// Custom HTTPS request with SSL verification skip option
+function httpsRequestWithSkipSSL(
+  url: string,
+  options: {
+    method: string
+    headers: Record<string, string>
+    timeoutMs: number
+  }
+): Promise<SimpleResponse> {
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(url)
+    const isHttps = parsedUrl.protocol === 'https:'
+
+    const requestOptions: https.RequestOptions = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || (isHttps ? 443 : 80),
+      path: parsedUrl.pathname + parsedUrl.search,
+      method: options.method,
+      headers: options.headers,
+      timeout: options.timeoutMs,
+      rejectUnauthorized: false, // Skip SSL verification
+    }
+
+    const req = (isHttps ? https : http).request(requestOptions, (res) => {
+      // Consume response body to free up memory
+      res.on('data', () => {})
+      res.on('end', () => {
+        resolve({
+          status: res.statusCode || 0,
+          statusText: res.statusMessage || '',
+        })
+      })
+    })
+
+    req.on('error', (error) => {
+      reject(error)
+    })
+
+    req.on('timeout', () => {
+      req.destroy()
+      reject(new Error(`Request timeout after ${options.timeoutMs}ms`))
+    })
+
+    req.end()
+  })
+}
+
+// Standard fetch wrapper
+async function standardFetch(
   url: string,
   options: {
     method: string
     headers: Record<string, string>
     signal: AbortSignal
-    skipSSLVerify?: boolean
   }
-): Promise<Response> {
-  // If SSL verification should be skipped and it's HTTPS, use custom agent
-  if (options.skipSSLVerify && url.startsWith('https://')) {
-    const agent = new https.Agent({
-      rejectUnauthorized: false,
-    })
-
-    return fetch(url, {
-      method: options.method,
-      headers: options.headers,
-      signal: options.signal,
-      // @ts-expect-error - Node.js fetch supports agent option
-      agent,
-    })
-  }
-
-  // Use standard fetch for HTTP or when SSL verification is enabled
-  return fetch(url, {
+): Promise<SimpleResponse> {
+  const response = await fetch(url, {
     method: options.method,
     headers: options.headers,
     signal: options.signal,
   })
+  return {
+    status: response.status,
+    statusText: response.statusText,
+  }
 }
 
 export async function performHealthCheck(
@@ -56,9 +96,6 @@ export async function performHealthCheck(
   const startTime = Date.now()
 
   try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
-
     const headers: Record<string, string> = {
       'User-Agent': 'API-Monitor/1.0',
     }
@@ -69,14 +106,28 @@ export async function performHealthCheck(
       headers[authHeader.name] = authHeader.value
     }
 
-    const response = await fetchWithSSLOption(monitor.url, {
-      method: monitor.method,
-      headers,
-      signal: controller.signal,
-      skipSSLVerify: monitor.skip_ssl_verify,
-    })
+    let response: SimpleResponse
 
-    clearTimeout(timeoutId)
+    if (monitor.skip_ssl_verify) {
+      // Use custom https module for SSL skip
+      response = await httpsRequestWithSkipSSL(monitor.url, {
+        method: monitor.method,
+        headers,
+        timeoutMs: TIMEOUT_MS,
+      })
+    } else {
+      // Use standard fetch
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
+
+      response = await standardFetch(monitor.url, {
+        method: monitor.method,
+        headers,
+        signal: controller.signal,
+      })
+
+      clearTimeout(timeoutId)
+    }
 
     const responseTime = Date.now() - startTime
     const isUp = response.status >= 200 && response.status < 400
