@@ -112,6 +112,39 @@ export interface IncidentUpdate {
   created_at: string
 }
 
+// URL Test Types
+export interface SslInfo {
+  valid: boolean
+  error?: string
+  expires_at?: string
+  days_until_expiry?: number
+  issuer?: string
+  subject?: string
+}
+
+export interface UrlTestResult {
+  success: boolean
+  status_code: number | null
+  response_time_ms: number
+  ssl_info: SslInfo | null
+  error_message?: string
+  suggested_settings: {
+    skip_ssl_verify?: boolean
+  }
+}
+
+export interface MatchingAuthProfile {
+  id: string
+  name: string
+  match_reason: string
+}
+
+export interface SmartDefaults {
+  suggested_name: string
+  suggested_method: MonitorMethod
+  matching_auth_profiles: MatchingAuthProfile[]
+}
+
 // Database types for Supabase
 export interface Database {
   public: {
