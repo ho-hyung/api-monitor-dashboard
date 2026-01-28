@@ -131,37 +131,7 @@ export async function GET(request: NextRequest) {
         const authToken = profileId ? tokensByProfile.get(profileId) : undefined
         const authProfile = profileId ? authProfilesMap.get(profileId) : undefined
 
-        // Build actual header value for debug
-        let actualHeaderValue = ''
-        if (authToken && authProfile) {
-          switch (authProfile.token_type) {
-            case 'Bearer':
-              actualHeaderValue = `Bearer ${authToken.substring(0, 20)}...`
-              break
-            case 'Basic':
-              actualHeaderValue = `Basic ${authToken.substring(0, 20)}...`
-              break
-            default:
-              actualHeaderValue = `${authToken.substring(0, 20)}...`
-          }
-        }
-
-        // Debug: log what's being passed
-        const authDebug = {
-          hasProfileId: !!profileId,
-          hasAuthToken: !!authToken,
-          authTokenLength: authToken?.length ?? 0,
-          hasAuthProfile: !!authProfile,
-          authProfileName: authProfile?.name,
-          tokenType: authProfile?.token_type,
-          headerName: authProfile?.header_name,
-          actualHeader: actualHeaderValue ? `${authProfile?.header_name}: ${actualHeaderValue}` : null,
-        }
-
         const result = await performHealthCheck(monitor, { authToken, authProfile })
-
-        // Include auth debug in result
-        const resultWithDebug = { ...result, authDebug }
 
         // Insert health check record
         await supabase.from('health_checks').insert({
@@ -191,40 +161,18 @@ export async function GET(request: NextRequest) {
           await triggerRecoveryAlerts(supabase, monitor)
         }
 
-        return { monitor_id: monitor.id, ...resultWithDebug }
+        return { monitor_id: monitor.id, ...result }
       })
     )
 
     const successful = results.filter(r => r.status === 'fulfilled').length
     const failed = results.filter(r => r.status === 'rejected').length
 
-    // Debug info
-    const debugInfo = {
-      monitors_with_auth: monitorsToCheck.filter(m => m.auth_profile_id).map(m => ({
-        monitor_id: m.id,
-        monitor_name: m.name,
-        auth_profile_id: m.auth_profile_id,
-        has_token: m.auth_profile_id ? tokensByProfile.has(m.auth_profile_id) : false,
-        token_error: m.auth_profile_id ? tokenErrors.get(m.auth_profile_id) : null,
-      })),
-      auth_profiles_found: authProfilesMap.size,
-      auth_profile_ids_requested: authProfileIds,
-    }
-
-    // Extract results with debug info
-    const resultsData = results.map(r =>
-      r.status === 'fulfilled' ? r.value : { error: 'Promise rejected' }
-    )
-
     return NextResponse.json({
       message: 'Health check completed',
       checked: monitorsToCheck.length,
       successful,
       failed,
-      auth_profiles_used: tokensByProfile.size,
-      auth_errors: tokenErrors.size,
-      debug: debugInfo,
-      results: resultsData,
     })
   } catch (error) {
     console.error('Cron health check error:', error)
