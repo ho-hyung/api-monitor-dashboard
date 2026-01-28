@@ -68,6 +68,8 @@ export async function GET(request: NextRequest) {
 
   const headers: Record<string, string> = {
     'User-Agent': 'API-Monitor/1.0',
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
     [authProfile.header_name]: authHeaderValue,
   }
 

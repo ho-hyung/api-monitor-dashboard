@@ -98,6 +98,8 @@ export async function performHealthCheck(
   try {
     const headers: Record<string, string> = {
       'User-Agent': 'API-Monitor/1.0',
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
     }
 
     // Add authentication header if provided
