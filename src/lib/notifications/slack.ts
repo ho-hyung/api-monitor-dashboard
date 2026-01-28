@@ -26,7 +26,7 @@ export async function sendSlackNotification(
     const statusText = status === 'down' ? 'DOWN' : 'UP'
 
     const payload: SlackMessage = {
-      text: message,
+      text: `${emoji} ${monitorName} is ${statusText}\n${message}`,
       blocks: [
         {
           type: 'section',
